@@ -9,7 +9,7 @@ import streamlit as st
 try:
     from groq import Groq
 except ImportError:
-    st.error("Pustaka 'groq' belum dipasang. Sila pastikan requirements.txt dibaca oleh Streamlit Cloud.")
+    st.error("Groq library is not installed. Please ensure that requirements.txt is being read by Streamlit Cloud.")
     st.stop()
 
 from langchain_community.vectorstores import FAISS
@@ -42,24 +42,24 @@ if "qa_log" not in st.session_state:
 # SIDEBAR: pilih senibina RAG untuk query ini — rekod dalam log untuk
 # perbandingan Naive vs Advanced semasa anda jalankan 30 vignette nanti.
 # ---------------------------------------------------------------------------
-st.sidebar.header("⚙️ Konfigurasi Senibina RAG")
+st.sidebar.header("⚙️ RAG Architecture Configuration")
 rag_mode = st.sidebar.radio(
-    "Pilih mod retrieval:",
-    options=["Naive RAG (skor L2 sahaja)", "Advanced RAG (dengan cross-encoder reranking)"],
+    "Choose retrieval mode:",
+    options=["Naive RAG (L2 score only)", "Advanced RAG (with cross-encoder reranking)"],
     index=1,
 )
 use_reranker = rag_mode.startswith("Advanced")
 
 if use_reranker and CrossEncoder is None:
     st.sidebar.error(
-        "Pustaka 'sentence-transformers' tidak dijumpai. Tambah 'sentence-transformers' "
-        "ke requirements.txt untuk guna mod Advanced RAG."
+        "The 'sentence-transformers' library was not found. Add 'sentence-transformers'. "
+        "to requirements.txt to use the Advanced RAG mod."
     )
 
 
 @st.cache_resource
 def setup_and_load_faiss():
-    """Ekstrak semua fail ZIP FAISS dan load setiap vectorstore."""
+    """Extract all FAISS ZIP files and load each vectorstore."""
     zip_files = [f for f in os.listdir('.') if f.endswith('.zip')]
     extract_dirs = []
 
@@ -87,7 +87,7 @@ def setup_and_load_faiss():
 
 @st.cache_resource
 def load_reranker():
-    """Load cross-encoder reranker sekali sahaja (cached across session)."""
+    """Load the cross-encoder reranker only once (cached across sessions)."""
     if CrossEncoder is None:
         return None
     return CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
@@ -95,10 +95,10 @@ def load_reranker():
 
 def get_guideline_name(metadata: dict) -> str:
     """
-    Ambil nama guideline dari metadata chunk.
-    Cuba beberapa nama key yang berkemungkinan digunakan oleh pipeline chunking anda.
-    Kalau citation dalam jawapan sentiasa keluar sebagai 'Guideline' (generik),
-    buka expander 'Debug' di bawah untuk lihat nama key sebenar dan tambah di sini.
+    Retrieve the guideline name from the metadata chunk.
+    Try several key names that your chunking pipeline might be using.
+    If the citation in the answer consistently appears as 'Guideline' (generic),
+    open the 'Debug' expander below to view the actual key name and add it here.
     """
     for key in ("source_guideline", "source", "guideline", "guideline_id"):
         value = metadata.get(key)
@@ -117,14 +117,14 @@ def get_section_name(metadata: dict) -> str:
 
 def rerank_with_cross_encoder(query: str, docs: list, reranker, top_n: int) -> list:
     """
-    Beri setiap (query, chunk) pasangan skor relevance menggunakan cross-encoder,
-    kemudian pulangkan top_n dokumen mengikut skor itu (bukan skor L2 asal).
+    Assign a relevance score to each (query, chunk) pair using a cross-encoder,
+    then return the top_n documents based on that score (rather than the original L2 score).
 
-    Ini langkah yang membezakan 'Advanced RAG' daripada 'Naive RAG' dalam app ini:
-    skor L2 (jarak embedding) hanya anggaran kasar; cross-encoder baca soalan DAN
-    chunk bersama-sama, jadi lebih tepat menilai relevance sebenar — terutama bila
-    dua chunk ada skor L2 hampir sama tapi satu sebenarnya jawab soalan dan satu
-    lagi cuma topik berkaitan.
+    This is the step that distinguishes 'Advanced RAG' from 'Naive RAG' in this app:
+    the L2 score (embedding distance) is merely a rough estimate; the cross-encoder processes the question AND
+    the chunk together, allowing for a more accurate assessment of true relevance—especially when
+    two chunks have similar L2 scores, but one actually answers the question while the
+    other merely relates to the topic.
     """
     if reranker is None or not docs:
         return docs[:top_n]
@@ -142,7 +142,7 @@ loaded_vectorstores = setup_and_load_faiss()
 reranker_model = load_reranker() if use_reranker else None
 
 if not loaded_vectorstores:
-    st.error("Tiada FAISS vectorstore berjaya dimuatkan. Semak fail ZIP dalam repo ini.")
+    st.error("No FAISS vectorstore was successfully loaded. Check the ZIP file in this repo.")
 
 user_query = st.text_area(
     "INSERT CLINICAL QUERY:",
@@ -190,10 +190,10 @@ if st.button("Generate Answer", type="primary"):
                     for doc in top_docs
                 ])
 
-                with st.expander("🔍 Debug: konteks yang diambil (semak nama key metadata di sini)"):
+                with st.expander("🔍 Debug: retrieved context (check metadata key name here)"):
                     st.caption(f"Mod digunakan: **{rag_mode}**")
                     if not top_docs:
-                        st.write("Tiada konteks ditemui untuk query ini.")
+                        st.write("No context found for this query.")
                     for i, doc in enumerate(top_docs, start=1):
                         st.markdown(f"**Chunk {i}** — metadata keys: `{list(doc.metadata.keys())}`")
                         st.json(doc.metadata)
@@ -268,14 +268,14 @@ ANSWER:
                             messages=[{"role": "user", "content": system_prompt}],
                         )
                         answer_text = completion.choices[0].message.content
-                        st.caption(f"🤖 Jawapan dijana menggunakan model: `{model_id}` | Mod RAG: `{rag_mode}`")
+                        st.caption(f"🤖 Answer generated using the model: `{model_id}` | RAG Mode: `{rag_mode}`")
                         break  # Berjaya! Keluar dari loop
                     except Exception as e:
                         last_error = e
                         continue
 
                 if answer_text is None:
-                    st.error(f"Ralat berlaku: {str(last_error)}")
+                    st.error(f"Error mode: {str(last_error)}")
                 else:
                     st.markdown(answer_text)
 
@@ -295,20 +295,20 @@ ANSWER:
 # Log Q&A Sesi Ini
 if st.session_state.qa_log:
     st.divider()
-    st.subheader(f"📊 Log Soalan & Jawapan Sesi Ini ({len(st.session_state.qa_log)} rekod)")
+    st.subheader(f"📊 This session's QnA Log ({len(st.session_state.qa_log)} rekod)")
     df_log = pd.DataFrame(st.session_state.qa_log)
     st.dataframe(df_log, use_container_width=True)
 
     csv_bytes = df_log.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="⬇️ Download Log sebagai CSV (eval_vignettes.csv)",
+        label="⬇️ Download log as CSV (eval_vignettes.csv)",
         data=csv_bytes,
         file_name="eval_vignettes.csv",
         mime="text/csv",
     )
     st.caption(
-        "Lajur `ground_truth` kosong — isi jawapan rujukan anda dalam Excel "
-        "selepas download, sebelum upload ke RAGAS scoring. Lajur `rag_mode` "
-        "menunjukkan senibina mana yang digunakan untuk setiap baris — penting "
-        "untuk perbandingan Naive vs Advanced RAG anda."
+        "The `ground_truth` column is empty — fill in your reference answers in Excel "
+        "after downloading and before uploading for RAGAS scoring. The `rag_mode` column "
+        "indicates which architecture was used for each row — this is important "
+        "for comparing Naive vs. Advanced RAG."
     )
